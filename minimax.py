@@ -5,7 +5,7 @@ import time
 
 def main():
     '''
-    Setup and play the game. Running minimax.py calls this function.
+    Setup and play the game.
     '''
     game = Game(3, 3, 3, automatic_players = [1,2], manual_players = [1], display = True)
     game.play()
@@ -18,295 +18,281 @@ class Game(object):
     """
 
 
-    def __init__(self,
-                m:int,
-                n:int,
-                k:int,
-                automatic_players:List = [1, 2],
-                manual_players:List = [1],
+    def __init__(self, m,n,k,
+                automatic_players=[1, 2],
+                manual_players=[1],
                 display:bool = True
                     ):
         """
-        Initilise the game. Allows the user to set the parameters of the game
-        when instantiating a new Game. The state of the game is reperesented by
-        a 2-tuple of sets (set(), set()), where the first set cotains the moves
-        made by player1(max) and the second set moves made by player2(min).
-        Each move is reperesented by a 2-tuple (coord_x, coord_y) where coord_x
-        is an integer representing the projection of a coordinate on the x-axis
-        of the board i.e a column of the game-grid. This coordinate is reperensented
-        alphabetically to the user such that A==first column, B==second column etc.
-        coord_y is an integer representing the projection of a coordinate on the y-axis
-        of the board i.e a row of the game-grid such that 1==first row, 2==second_row etc.
-        For players in both automatic_players and manual_players the minimax algorithm will
-        suggest a move but the user can choose what move to make.
+        Start the game. When creating a new Game, the user can set the game's parameters.
+        The game's state is represented by a 2-tuple of sets (set(), set()), where the first 
+        set comprises moves performed by player1(max) and the second set contains moves made by player2(min). 
+        Each move is represented by a 2-tuple (coord x, coord y), where coord x is an integer reflecting the 
+        projection of a point on the x-axis of the board, i.e. a column of the game-grid. This coordinate is 
+        represented to the user alphabetically, so that A==first column, B==second column, and so on. 
+        coord y is an integer that represents the projection of a coordinate on the y-axis of the board, 
+        i.e. a row of the game-grid, where 1==first row, 2==second row, and so on. 
+        The minimax algorithm will recommend a move for players in both automatic players and manual players, 
+        but the user can pick what move to make.
 
-        :param m: integer representing the size of the grid along the x-axis
-        :param n: integer representing the size of the grid along the y-axis
-        :param k: integer representing the number of consecutive squares a player
-        needs to occupy on the grid to win the game
-        :param automatic_players: List defining the player to be played automatically
-                   by the mininmax algorithm. [1, 2] means both
-                   player1 and player2 are played automatically.
-                   And empty list [] means none are played automatically
-        :param manual_players: List defining the player to be played manually
-                by the mininmax algorithm.
-        :param display: Boolean deciding if the graphical a reperesentation of the game
-         will be displayed or not.
+        - param m: an integer specifying the grid's size along the x-axis
+        - param n: an integer specifying the grid size along the y-axis
+        - param k: an integer reflecting the number of consecutive squares a player must occupy on the grid in order to win the game
+        - automatic players parameter: The list of players that will be played automatically by the minimax algorithm. [1, 2] indicates that both player1 and player2 are automatically played. 
+          And an empty list [] indicates that none are played automatically: 
+        - manual players: A list of players to be played manually using the minimax algorithm. : 
+        - display: A Boolean indicating whether or not the game's graphical representation will be displayed. 
         """
 
-
+        # Setting m,n,k
         self.m = m
         self.n = n
         self.k = k
 
+        # Setting the players and the display
         self.automatic_players = automatic_players
         self.manual_players = manual_players
         self.display = display
 
-        self.possible_moves =\
-            {(i,j) for i in range(1,self.m+1) for j in range(1, self.n+1)}
-        self.previous_moves_p1 = set()
-        self.previous_moves_p2 = set()
-        self.state = (self.previous_moves_p1, self.previous_moves_p2)
-        self.directions =\
-        (self.horizontal, self.diagonal_R, self.verical, self.diagonal_L)
+        # initialize the possible moves and the moves of player 1 and player 2, the state and the win 
+        # directions
+        self.possible_moves = set([(i,j) for i in range(1,self.m+1) for j in range(1, self.n+1)])
+        self.previous_moves_player1 = set()
+        self.previous_moves_player2 = set()
+        self.state = (self.previous_moves_player1, self.previous_moves_player2)
+        self.directions =(self.horizontal, self.diagonal_R, self.vertical, self.diagonal_L)
 
+        # set experience buffer to speed up our algorithm
         self.buffer = ExperienceBuffer()
-
+        
+        # initialize the action values
         self.action_values = {}
 
 
     def play(self):
         """
-        Simulates an entire game. Prints necessary information about the
-        current state of the board. Players in self.manual_players are played by
-        user and players in self.automatic_players are played automatically by
-        the minimax algorithm. For players in both self.manual_players and self.automatic_players
-        moves are reccomended by the minimax algoritim but the user chooses which
-        move to make.
-        :return: a list of the execution times of moves made by automatic players
-        with the last element being the total game time.
+        It simulates the full game. Prints the essential information regarding the board's present state. 
+        Players in self.manual players are controlled by the user, whereas players in self.automatic players
+        are controlled automatically by the minimax algorithm. The minimax algorithm recommends movements for
+        players in both self.manual players and self.automatic players, but the user selects which move to make. 
+        - return: a list of the execution times of moves performed by automatic players, with the last element 
+                  representing the total game duration.
         """
+        
         player = 1
         terminal = False
-        winning_player = None
+        winner = None
 
-        message_manual = 'The computer recommends the move(s): '
-        message_automatic = 'The computer makes the move: '
-        message_invalid = 'Invalid move!. That cell is either occupied or out of bounds.'
+        msg_manual = 'PC recommended move(s): '
+        msg_automatic = 'PC makes a move: '
+        msg_invalid = 'This move is invalid!. The cell is already occupied or is out of bounds.'
 
         times = []
-        game_start = time.time()
-        #game loop
+        start_game = time.time()
+        #This loop represents the game
         while True:
             state = self.state
             if self.display:
                 self.drawboard(self.state)
-            # if current state is terminal print relevat message about the result.
+            # Print terminal message
             if terminal:
-                if winning_player == 1:
-                    print('Player 1 WON!')
-                elif winning_player == 2:
-                    print('Player 2 WON!')
-                elif winning_player == 0:
-                    print('Its a TIE!')
+                if winner == 1:
+                    print('The Player 1 has WON!')
+                elif winner == 2:
+                    print('The Player 2 has WON!')
+                elif winner == 0:
+                    print('The game ends with a TIE!')
                 break
 
-            print(f'Player {player} to move...')
-            #manual player with assitance from algorithm
+            print(f'Player {player} move...')
+
+            # The Manual player
             if player in self.automatic_players and player in self.manual_players:
-                actions = self.minimax_action(state, player)
-                board_coordinates = self.array_to_board_coordinates(actions)
-                message = message_manual + board_coordinates
-                print(message)
-                board_coordinates = input('Input your move: ')
-                action = self.board_to_array_coordinates(board_coordinates)
-            # fully automatic player
+                chosen_actions = self.minimax_strategy(state, player)
+                board_coordinates = self.convert_array_to_board_coordinates(chosen_actions)
+                msg = msg_manual + board_coordinates
+                print(msg)
+                board_coordinates = input('Input move: ')
+                chosen_action = self.convert_board_to_array_coordinates(board_coordinates)
+            
+            # The automatic player
             elif player in self.automatic_players:
-                action_start = time.time()
-                action = self.minimax_action(state, player)[0]
-                action_end = time.time()
-                times.append(action_end-action_start)
-                board_coordinates = self.array_to_board_coordinates([action])
-                message = message_automatic + board_coordinates
-                print(message)
-            #fully manual player
+                start_action = time.time()
+                chosen_action = self.minimax_strategy(state, player)[0]
+                end_action = time.time()
+                times.append(end_action-start_action)
+                board_coordinates = self.convert_array_to_board_coordinates([chosen_action])
+                msg = msg_automatic + board_coordinates
+                print(msg)
+
+            #the manual player
             elif player in self.manual_players:
-                board_coordinates = input('Input your move: ')
-                action = self.board_to_array_coordinates(board_coordinates)
-            #check if the move is valid
-            if self.is_valid(self.state, action):
-                #if valid update state and check if new state is terminal
-                self.state = self.resulting_state(state, action, player)
-                terminal, winning_player = self.is_terminal(self.state, action, player)
-                #clear saved states to avoid running ou of RAM
+                board_coordinates = input('Input move: ')
+                chosen_action = self.convert_board_to_array_coordinates(board_coordinates)
+
+            # check the validity of our action
+            if self.is_valid(self.state, chosen_action):
+
+                # if the action is valid, check if our new state is terminal
+                self.state = self.resulting_state(state, chosen_action, player)
+                terminal, winner = self.is_terminal(self.state, chosen_action, player)
+                
+                #delete our saved states
                 self.buffer.clear()
-                #switch current player
+                
+                #switch the player
                 player = player%2 + 1
             else:
                 # if move invalid return to top of loop without changing the state
                 # or current player.
-                print(message_invalid)
+                print(msg_invalid)
 
-        game_end = time.time()
-        times.append(game_end - game_start)
+        end_game = time.time()
+        times.append(end_game - start_game)
         return times
 
 
-    def minimax_action(self, state, player):
+    def minimax_strategy(self, state, player):
         """
-        Calculates the minimax action for a given player in a given game state
+        The minimax action for a given player in a given game state is calculated. 
 
-        :param state: 2-tuple of sets(set(), set()) reperesentin the current
-                      state of the game.
-        :param player: The player to make a move:
-                       player = 1 --> max-action
-                       player = 2 --> min-action
-        :return: a list all optimal actions possible in the current game state. i.e
-                 actions with values equal to the action value of the minimax actions
-                 for the given player.
+        - param state: a tuple of sets(set(), set()) describing the game's current state. 
+        - param player: The player who is about to make a move: 
+          player = 1 -> max-action
+          player = 2 -> min-action
+          max-action = player = 1 
+        - return: a list of all feasible optimal actions in the current game state. Specifically, 
+          actions with values equal to the action value of the minimax actions for the given player.
        """
-        optimal_actions = []
+        
+        # initialize the optimal actions
+        opt_actions = []
         self.action_values.clear()
-        if player == 1: #max-action
-            optimal_value = self.max_value(state, last_action = None, depth = 0)
-        elif player == 2: #min-action
-            optimal_value = self.min_value(state, last_action = None, depth = 0)
+
+        if player == 1:
+            opt_value = self.max(state, last_action = None, depth = 0)
+        elif player == 2: 
+            opt_value = self.min(state, last_action = None, depth = 0)
         for action, value in self.action_values.items():
-            if value == optimal_value:
-                optimal_actions.append(action)
-        return optimal_actions
+            if value == opt_value:
+                opt_actions.append(action)
+        return opt_actions
 
 
-    def max_value(self, state, last_action, depth, player=2):
+    def max(self, state, last_action, depth, player=2):
         """
-        Calculates the minimax value for player 'max'(player1) for a given state.
-        Apart from the standard minimax algorithm this
-        function also has some extra lines to store values of states and to
-        recall values of already seen states. This is necissary to speed up the
-        calculation which otherwise took unreasoably long for anny game bigger
-        than (3,3,3).
+        For a given state, computes the minimax value for player'max'(player1). 
+        Aside from the conventional minimax method, this function has some extra 
+        lines for storing state values and retrieving values from previously viewed states. 
+        This is required to speed up the calculation, which would otherwise take an inordinate 
+        amount of time for any game larger than (3,3,3).
 
-        :param state: 2-tuple of sets(set(), set()) reperesenting the current
-                      state of the game.
+        - param state: tuple of sets(set(), set()) that reperesenting our current
+                      game state.
 
-        :param last_action: The last action taken in the game(the previous move
-                            by the opposing player). Used to speed up the is_terminal
-                            calculation.
-        :param depth: Parameterer to track the depth of the recursion to store
-                      values of states one move away from the current state as the recursion
-                      unwinds.
-        :param player: The player who made the last move. Used in the is_terminal
-                       calculation.
+        - param last_action: The latest action which was taken in the game
 
-        :return: The maximum action value for the current state.
+        - param depth: Keep track of the recursion's depth to store values of states one step distant from 
+                       the current state when the recursion unwinds.
+        - param player: The player that made the latest move.
+
+        - return: maximum action value corresponding to the current state.
        """
-        terminal, winning_player = self.is_terminal(state, last_action, player)
-        if terminal:
-            return(self.utility(winning_player))
-        v = -float('inf')
-        ###############################################
-        # THESE LINES ARE FOR LOOKING UP VALUES OF
-        # PREVIOUS STATES TO SPEED THE CALCULATION UP
-        ###############################################
-        v_buffer = self.buffer.lookup(state)
-        if v_buffer == None:
+        terminal_state, winner = self.is_terminal(state, last_action, player)
+        
+        # if the state is terminal
+        if terminal_state:
+            return(self.calculate_utility(winner))
+        V = -float('inf')
+
+        # In order to speed up our calculations, the following
+        # code lines search for the the values of the previous states
+      
+        V_buff = self.buffer.lookup(state)
+        if V_buff == None:
             pass
-        elif v_buffer != None:
-            return v_buffer
-        ###############################################
-        # THESE LINES ARE FOR LOOKING UP VALUES OF
-        # PREVIOUS STATES TO SPEED THE CALCULATION UP
-        ###############################################
-        for action in self.actions(state):
-            new_state = self.resulting_state(state, action, 1)
-            v_new = self.min_value(new_state, action, depth + 1)
-            v = max(v, v_new)
+        elif V_buff != None:
+            return V_buff
+        
+        # In order to speed up our calculations, the following
+        # code lines search for the the values of the previous states   
+        for chosen_action in self.actions(state):
+            new_state = self.resulting_state(state, chosen_action, 1)
+            V_new = self.min(new_state, chosen_action, depth + 1)
+            V = max(V, V_new)
             if depth == 0:
-                self.action_values[action] = v_new
+                self.action_values[chosen_action] = V_new
 
-        self.buffer.add(state, v)
-        return v
+        self.buffer.add(state, V)
+        return V
 
 
-    def min_value(self, state, last_action, depth, player=1):
+    def min(self, state, last_action, depth, player=1):
         """
-        Calculates the minimax value for player 'min'(player2) for a given state.
-        part from the standard minimax algorithm this
-        function also has some extra lines to store values of states and to
-        recall values of already seen states. This is necissary to speed up the
-        calculation which otherwise took unreasoably long for any game bigger
-        than (3,3,3).
+        For a given state, computes the minimax value for player'min'(player2). 
+        Aside from the conventional minimax method, this function has some extra 
+        lines for storing state values and retrieving values from previously viewed states. 
+        This is required to speed up the calculation, which would otherwise take an inordinate 
+        amount of time for any game larger than (3,3,3).
 
-        :param state: 2-tuple of sets(set(), set()) reperesenting the current
-                      state of the game.
-                      can be discared as not being better than what has already been seen.
-        :param last_action: The last action taken in the game(the previous move
-                            by the opposing player). Used to speed up the is_terminal
-                            calculation.
-        :param depth: Parameterer to track the depth of the recursion to store
-                      values of states one move away from the current state as the recursion
-                      unwinds.
-        :param player: The player who made the last move. Used in the is_terminal
-                       calculation.
+        - param state: tuple of sets(set(), set()) that reperesenting our current
+                      game state.
 
-        :return: The minimum action value for the current state.
+        - param last_action: The latest action which was taken in the game
+
+        - param depth: Keep track of the recursion's depth to store values of states one step distant from 
+                       the current state when the recursion unwinds.
+        - param player: The player that made the latest move.
+
+        - return: minimum action value corresponding to the current state.
        """
-        terminal, winning_player = self.is_terminal(state, last_action, player)
-        if terminal:
-            return(self.utility(winning_player))
-        v = float('inf')
-        ###############################################
-        # THESE LINES ARE FOR LOOKING UP VALUES OF
-        # PREVIOUS STATES TO SPEED THE CALCULATION UP
-        ###############################################
-        v_buffer = self.buffer.lookup(state)
-        if v_buffer == None:
+        terminal_state, winner = self.is_terminal(state, last_action, player)
+        if terminal_state:
+            return(self.calculate_utility(winner))
+        V = float('inf')
+        
+        # In order to speed up our calculations, the following
+        # code lines search for the the values of the previous states
+        V_buff = self.buffer.lookup(state)
+        if V_buff == None:
             pass
-        elif v_buffer != None:
-            return v_buffer
-        ###############################################
-        # THESE LINES ARE FOR LOOKING UP VALUES OF
-        # PREVIOUS STATES TO SPEED THE CALCULATION UP
-        ###############################################
+        elif V_buff != None:
+            return V_buff
+        
+        # In order to speed up our calculations, the following
+        # code lines search for the the values of the previous states
         for action in self.actions(state):
             new_state = self.resulting_state(state, action, 2)
-            v_new = self.max_value(new_state, action, depth + 1)
-            v = min(v, v_new)
+            V_new = self.max(new_state, action, depth + 1)
+            V = min(V, V_new)
             if depth == 0:
-                self.action_values[action] = v_new
+                self.action_values[action] = V_new
 
-        self.buffer.add(state, v)
-        return v
+        self.buffer.add(state, V)
+        return V
 
 
     def actions(self, state):
         """
-        Calculates the possible action is a gives state as the difference between
-        the possible action on an empty board and the current state.
+      The difference between the available action on an empty board and the present state is used to calculate
+      the possible action in a given condition. 
 
-        :param state: 2-tuple of sets(set(), set()) reperesenting the current
-                      state of the game.
+      - param state: tuple of sets(set(), set()) describing the game's current state. 
 
-        :return: A set of the possible actions in the given state.
+      - return: A list of actions that could be taken in the given condition.
         """
         return(self.possible_moves - state[0] - state[1])
 
 
     def resulting_state(self, state:tuple, action:tuple, player):
-        """
-        Calculates the resulting state if a given action is taken in a given state.
+        """ Returns the subsequent state if a particular action is performed in a given state. 
 
-        :param state: 2-tuple of sets(set(), set()) reperesenting the current
-                      state of the game.
-        :param action: 2-tuple (coord_x, coord_y) representin an action where coord_x
-                       is an integer representing the projection of a coordinate on the x-axis
-                       of the board i.e a column of the game-grid. coord_y is an
-                       integer representing the projection of a coordinate on the y-axis.
-
-        :return: 2-tuple of sets(set(), set()) reperesenting the resulting
-                 state of the game.
-        """
+            - param state: a tuple of sets(set(), set()) representing the game's current state. 
+            - param action: tuple (coord x, coord y) representing an action, where coord x is an integer reflecting 
+                            the projection of a coordinate on the board's x-axis, i.e. a column of the game-grid. coord y is an integer 
+                            that represents the y-axis projection of a coordinate. 
+            - return: a tuple of sets(set(), set()) representing the game's final state. 
+"""
         new_state = (state[0].copy(), state[1].copy())
         if player == 1:
             new_state[0].add(action)
@@ -316,61 +302,57 @@ class Game(object):
             return(new_state[0], new_state[1])
 
 
-    def utility(self, winning_player):
+    def calculate_utility(self, winner):
         """
-        Calculates the utility of a terminal state given the winning player.
+        Determines the utility of a terminal state given the winner. 
 
-        :param winning_player: integer representing the winning player:
-                               winning_player = 1 --> 'max' won
-                               winning_player = 2 --> 'min' won
-                               winning_player = 0 --> game is tied
+        - param winner: integer representing the winning player:
+                               winner = 1 --> 'max' won
+                               winner = 2 --> 'min' won
+                               winner = 0 --> the game ends in a tie
 
-        :return: if winning_player = 1 --> 1
-                 if winning_player = 2 --> -1
-                 if winning_player = 0 --> 0
+        - return: if winner = 1 --> 1
+                 if winner = 2 --> -1
+                 if winner = 0 --> 0
         """
-        if winning_player == 1:
+        if winner == 1:
             return 1
-        elif winning_player == 2:
+        elif winner == 2:
             return -1
-        elif winning_player == 0:
+        elif winner == 0:
             return 0
 
 
     def horizontal(self, x, y, step):
         """
-        Helper function to search for is_terminal to find terminal states.
+        Helper function that searches for is_terminal in order to find terminal states. 
 
-        :param x: An integer representing the projection of a coordinate on the x-axis.
-        :param y: An integer representing the projection of a coordinate on the y-axis.
-        :param step: An integer representing the number of "steps" to take horizontally
-                    from (x, y).
-
-        :return: (x+step, y)
+        -param x: An integer encoding the x-axis projection of a coordinate. 
+        -param y:An integer encoding the y-axis projection of a coordinate. 
+        -param step: An integer denoting the number of horizontal "steps" to take from (x, y). 
+        -return: (x+step, y)
         """
         return(x+step, y)
 
     def diagonal_R(self, x, y, step):
         """
-        Helper function to search for is_terminal to find terminal states.
+        Helper function that searches for is_terminal in order to find terminal states.
 
-        :param x: An integer representing the projection of a coordinate on the x-axis.
-        :param y: An integer representing the projection of a coordinate on the y-axis.
-        :param step: An integer representing the number of "steps" to take on the right
-                     diagonal from (x, y).
+        -param x: An integer encoding the x-axis projection of a coordinate. 
+        -param y:An integer encoding the y-axis projection of a coordinate. 
+        -param step: An integer denoting the number of right diagonal 'steps' from (x, y).
 
         :return: (x+step, y+step)
         """
         return(x+step, y+step)
 
-    def verical(self, x, y, step):
+    def vertical(self, x, y, step):
         """
-        Helper function to search for is_terminal to find terminal states.
+        Helper function that searches for is_terminal in order to find terminal states.
 
-        :param x: An integer representing the projection of a coordinate on the x-axis.
-        :param y: An integer representing the projection of a coordinate on the y-axis.
-        :param step: An integer representing the number of "steps" to take vertically
-                    from (x, y).
+        -param x: An integer representing the projection of a coordinate on the x-axis.
+        -param y: An integer representing the projection of a coordinate on the y-axis.
+        -param step: An integer denoting the number of vertical 'steps' from (x, y).
 
         :return: (x, y+step)
         """
@@ -378,24 +360,24 @@ class Game(object):
 
     def diagonal_L(self, x, y, step):
         """
-        Helper function to search for is_terminal to find terminal states.
+        Helper function that searches for is_terminal in order to find terminal states.
 
-        :param x: An integer representing the projection of a coordinate on the x-axis.
-        :param y: An integer representing the projection of a coordinate on the y-axis.
-        :param step: An integer representing the number of "steps" to take on the left
-                     diagonal from (x, y).
+        -param x: An integer representing the projection of a coordinate on the x-axis.
+        -param y: An integer representing the projection of a coordinate on the y-axis.
+        -param step: An integer denoting the number of left diagonal 'steps' from (x, y).
+
 
         :return: (x-step, y+step)
         """
         return(x-step, y+step)
 
 
-    def is_terminal(self, state, last_action, player):
+    def is_terminal(self, state, previous_action, player):
         """
-        Terminal check from the given state. Uses the last action taken and the player
-        who took this action to speed up calculations since this allows to look
-        only for terminal combinations that involve the last action taken.
-        For example in this state of a (3,3,3)-game:
+        From the supplied state, perform a terminal check. Uses the most recent action done and the 
+        player who took it to speed up calculations by looking solely for terminal combinations that 
+        involve the most recent action taken. 
+        For example, consider the following state of a (3,3,3)-game:
                                 A   B   C
                               -------------
                             3 | O | O | X | 3
@@ -405,147 +387,152 @@ class Game(object):
                             1 | O | X | O | 1
                               -------------
                                 A   B   C
-        knowing that the last action was for example C2 allows to look only
-        at combinations involving C2 in the terminal check.
+        Knowing that the last action was, say, C2, allows you to limit your search to combinations 
+        involving C2 in the terminal check.
 
-        :param state: 2-tuple of sets(set(), set()) reperesenting the current
+        - param state: tuple of sets(set(), set()) reperesenting the current
                       state of the game.
 
-        :param last_action: The last action taken in the game.
+        - param last_action: The latest action taken.
 
-        :param player: The player who made the last move.
+        - param player: The player who made the latest move.
 
-        :return: (terminal, winning_player) where terminal is a boolean which:
+        - return: (terminal, winner) where terminal is a boolean such that:
                  terminal = True --> state is terminal
                  terminal = False --> state is not terminal
-                 and winning_player representing the winner of the game:
+                 and winner representing the winner of the game:
 
-                 winning_player = 1 --> 'max' won
-                 winning_player = 2 --> 'min' won
-                 winning_player = 0 --> game is tied
-                 winning_player = None if terminal=False
+                 winner = 1 --> 'max' won
+                 winner = 2 --> 'min' won
+                 winner = 0 --> game is tied
+                 winner = None if terminal=False
         """
         terminal = False
-        winning_player = None
-        if last_action == None:
-            return terminal, winning_player
+        winner = None
+        if previous_action == None:
+            return terminal, winner
         previous_moves = state[player - 1]
-        x = last_action[0]
-        y = last_action[1]
+        x = previous_action[0]
+        y = previous_action[1]
 
-        for direction in self.directions:#check each direction
-            comb_len = 1
+        # we loop through the directions
+        for direction in self.directions:
+            combination_length = 1
             step = 1
             while True:
-                if direction(x, y, step) in previous_moves:#player also occupies this cell
-                    comb_len += 1
+                
+                #This cell is also occupied by a player.
+                if direction(x, y, step) in previous_moves:
+                    combination_length += 1
                     step += 1
-                else:#player does not occupies this cell
+                # This cell is not occopied by a player
+                else:
                     break
-
-            step = -1#check the other way
+            
+            #check the opposite
+            step = -1
             while True:
-                if direction(x, y, step) in previous_moves:#player also occupies this cell
-                    comb_len += 1
+
+                #This cell is also occupied by a player.
+                if direction(x, y, step) in previous_moves:
+                    combination_length += 1
                     step -= 1
-                else:#player does not occupies this cell
+
+                # This cell is not occopied by a player
+                else:
                     break
 
-            if comb_len >= self.k:#check if the combination is long enough to win
+            if combination_length >= self.k:
                 terminal = True
-                winning_player = player
+                winner = player
                 break
 
         if not terminal and len(state[0]) + len(state[1]) == self.n*self.m:#check if tied
-            winning_player = 0
+            winner = 0
             terminal = True
 
-        return terminal, winning_player
+        return terminal, winner
 
 
     def is_valid(self, state, action):
+        """ Determine whether a particular action is valid in a given state. The action must take place 
+        within the board's boundaries and in an unoccupied cell. 
+
+        -param state: a tuple of sets(set(), set()) representing the game's current state. 
+        -param action: tuple (coord x, coord y) indicating an action, where coord x is an integer 
+         reflecting the projection of a coordinate on the board's x-axis, i.e. a column of the game-grid. 
+         coord y is an integer that represents the y-axis projection of a coordinate. 
+
+        -return: True if the action is valid, False otherwise 
+        
         """
-        Check if a given action is valid in a given state. The action needs to be
-        in bounds of the board and be an unoccupied cell.
 
-        :param state: 2-tuple of sets(set(), set()) reperesenting the current
-                      state of the game.
-        :param action: 2-tuple (coord_x, coord_y) representin an action where coord_x
-                       is an integer representing the projection of a coordinate on the x-axis
-                       of the board i.e a column of the game-grid. coord_y is an
-                       integer representing the projection of a coordinate on the y-axis.
+        x_boundary = 1 <= action[0] <= self.m
+        y_boundary = 1 <= action[1] <= self.n
+        not_occupied_player1 = action not in state[0]
+        not_occupied_player2 = action not in state[1]
 
-        :return: True if action is valid, False if action is invalid.
-        """
-        x_bound = 1 <= action[0] <= self.m
-        y_bound = 1 <= action[1] <= self.n
-        not_occupied_p1 = action not in state[0]
-        not_occupied_p2 = action not in state[1]
-
-        return(all([x_bound, y_bound, not_occupied_p1, not_occupied_p2]))
+        return(all([x_boundary, y_boundary, not_occupied_player1, not_occupied_player2]))
 
 
     def drawboard(self, state):
         """
-        Function to draw the board on screen for a given state.
+        Draw the board on screen for a state.
         """
-        array_board = [[' ' for _ in range(self.m)] for _ in range(self.n)]
+        board_array = [[' ' for _ in range(self.m)] for _ in range(self.n)]
         for x, y in state[0]:
-            array_board[self.n - y][x - 1] = 'X'
+            board_array[self.n - y][x - 1] = 'X'
 
         for x, y in state[1]:
-            array_board[self.n - y][x - 1] = 'O'
+            board_array[self.n - y][x - 1] = 'O'
 
-        board_str = self.get_board_string(array_board)
+        board_str = self.get_board_string(board_array)
         print(board_str)
 
 
     def get_board_string(self, array_board):
         """
-        Convert array representing the boards state to a printable string.
+        Convert an array representing the state of the board to a printable string.
         """
-        list_lines = []
+        lines_list = []
 
-        array_first_line =\
-                [chr(code + UPPER_CASE_OFFSET) for code in range(1, self.m + 1)]
-        first_line =\
-                ' ' * (len(str(self.n)) + 3) +\
-                (' ' * 3).join(array_first_line) + ' \n'
+        first_line_array =[chr(code + UPPER_CASE_OFFSET) for code in range(1, self.m + 1)]
+        first_line = ' ' * (len(str(self.n)) + 3) + (' ' * 3).join(first_line_array) + ' \n'
 
         for index_line, array_line in enumerate(array_board, 1):
             index_line = self.n + 1 - index_line
             number_spaces_before_line = len(str(self.n)) - len(str(index_line))
             space_before_line = number_spaces_before_line * ' '
-            list_lines.append(f'{space_before_line}{index_line} | ' +\
+            lines_list.append(f'{space_before_line}{index_line} | ' +\
                             ' | '.join(array_line) + f' | {index_line}\n')
 
         line_dashes = (len(str(self.n)) + 1)*' ' + '-' * 4 * self.m + '-\n'
 
-        board_str = first_line + line_dashes + line_dashes.join(list_lines) +\
+        board_str = first_line + line_dashes + line_dashes.join(lines_list) +\
                     line_dashes + first_line
 
         return board_str
 
 
-    def array_to_board_coordinates(self, coordinates):
+    def convert_array_to_board_coordinates(self, coordinates):
         """
-        Convert coordinates from array index to its printed representation.
+        Convert array index coordinates to their printed representation.
         """
-        board_coordinates = []
+        coordinates_board = []
         for x, y in coordinates:
             x_board = chr(x + UPPER_CASE_OFFSET)
             y_board = str(y)
-            board_coordinates.append(x_board + y_board)
-        board_coordinates.sort()
+            coordinates_board.append(x_board + y_board)
+        coordinates_board.sort()
         coordinate_string = str()
-        for coordinate in board_coordinates:
+        for coordinate in coordinates_board:
             coordinate_string += coordinate + ', '
         return coordinate_string[:-2] + '.'
 
 
-    def board_to_array_coordinates(self, coordinate):
+    def convert_board_to_array_coordinates(self, coordinate):
         """
-        Convert coordinates from its printed representation to array index.
+        Convert coordinates from their printed form to array indexes.
         """
         x_array = ord(coordinate[0].upper()) - UPPER_CASE_OFFSET
         y_array = int(coordinate[1])
@@ -554,8 +541,8 @@ class Game(object):
 
 class ExperienceBuffer:
     '''
-    Class to setup the storage of state values. This is used to achive reasonable
-    execution times on the computers avalable to me.
+    A class for configuring the storage of state values. This is utilised to achieve suitable 
+    execution times on the PCs that I have at my disposal.
     '''
 
     def __init__(self):
@@ -563,17 +550,17 @@ class ExperienceBuffer:
 
     def add(self, state, value):
         '''
-        Add state to buffer.
+        Add state to the buffer.
         '''
-        frozen_state = (frozenset(state[0]), frozenset(state[1]))
+        state_frozen = (frozenset(state[0]), frozenset(state[1]))
         if frozenset not in self.buffer:
-            self.buffer[frozen_state] = value
+            self.buffer[state_frozen] = value
         else:
             pass
 
     def lookup(self, state):
         '''
-        Lookup the value for a stored state
+        Look up the value of a previously saved state.
         '''
         frozen_state = (frozenset(state[0]), frozenset(state[1]))
         if frozen_state in self.buffer:
@@ -583,7 +570,7 @@ class ExperienceBuffer:
 
     def clear(self):
         '''
-        Clear stored states
+        Clear the stored states
         '''
         self.buffer.clear()
 
