@@ -7,7 +7,7 @@ def main():
     '''
     Setup and play the game.
     '''
-    game = Game(3, 3, 3, automatic_players = [1,2], manual_players = [1], display = True)
+    game = Game(4, 4, 4, automatic_players = [1,2], display = True)
     game.play()
 
 UPPER_CASE_OFFSET = 64
@@ -25,9 +25,9 @@ class Game(object):
                     ):
         """
         Start the game. When creating a new Game, the user can set the game's parameters.
-        The game's state is represented by a 2-tuple of sets (set(), set()), where the first 
+        The game's state is represented by a tuple of sets (set(), set()), where the first 
         set comprises moves performed by player1(max) and the second set contains moves made by player2(min). 
-        Each move is represented by a 2-tuple (coord x, coord y), where coord x is an integer reflecting the 
+        Each move is represented by a tuple (coord x, coord y), where coord x is an integer reflecting the 
         projection of a point on the x-axis of the board, i.e. a column of the game-grid. This coordinate is 
         represented to the user alphabetically, so that A==first column, B==second column, and so on. 
         coord y is an integer that represents the projection of a coordinate on the y-axis of the board, 
@@ -40,7 +40,7 @@ class Game(object):
         - param k: an integer reflecting the number of consecutive squares a player must occupy on the grid in order to win the game
         - automatic players parameter: The list of players that will be played automatically by the minimax algorithm. [1, 2] indicates that both player1 and player2 are automatically played. 
           And an empty list [] indicates that none are played automatically: 
-        - manual players: A list of players to be played manually using the minimax algorithm. : 
+        - manual players: A list of players to be played manually using the minimax algorithm.
         - display: A Boolean indicating whether or not the game's graphical representation will be displayed. 
         """
 
