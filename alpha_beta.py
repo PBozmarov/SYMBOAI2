@@ -81,13 +81,16 @@ class Game(object):
         # define the current game state given the previous history of the players
         self.game_state = (self.player1_move_history, self.player2_move_history)
 
-        # 
+        # tuple of functions to get a gridcell in a given direction and of a given stepsize 
         self.directions = (self.horizontal, self.diagonal_R, self.vertical, self.diagonal_L)
 
-        #
-        self.history = GameStatesBuffer()
+        # history of the states visited - 
+        # dictionary that stores results of alpha-beta pruning and state values. 
+        # It uses the frozenset of game states as keys to store the calculated utilities 
+        # (value) and alpha-beta eliminations (ifcut) for each game state. 
+        self.history = {} 
 
-        #
+        # stores the utility values of each potential action that can be made
         self.action_values = {}
     
     def is_valid_move(self, game_state, action):
@@ -336,6 +339,27 @@ class Game(object):
             new_game_state[1].add(action)
             return(new_game_state[0], new_game_state[1])
 
+    def add_history_entry(self, game_state, value, ifcut):
+        '''
+        Add state to buffer. cut_flag is True if the value calculation ws alpha or beta cut
+        '''
+        history_key = (frozenset(game_state[0]), frozenset(game_state[1]))
+        if history_key not in self.history:
+            self.history[history_key] = [ifcut, value]
+        else:
+            pass
+
+    def lookup_history(self, game_state):
+        '''
+        Lookup the value for a stored state
+        '''
+        history_key = (frozenset(game_state[0]), frozenset(game_state[1]))
+        if history_key in self.history:
+            return(self.history[history_key])
+        else:
+            return False, None
+    
+
     def max(self, game_state, alpha, beta, previous_action, depth, player=2):
         
         """ Calculates the Minimax value for Max player (player who takes the first turn) for a given game state.
@@ -380,7 +404,7 @@ class Game(object):
         v = -float('inf')
 
         # see if the game state has previosly been explored
-        ifcut, v_saved = self.history.lookup(game_state)
+        ifcut, v_saved = self.lookup_history(game_state)
         
         # if state is stored and the value has been previously calculated, return the value
         if v_saved is not None and (not ifcut):
@@ -412,7 +436,7 @@ class Game(object):
             if v >= beta:
 
                 # store the new utility value as 
-                self.history.add_entry(game_state, v, True)
+                self.history.add_history_entry(game_state, v, True)
 
                 # if the max function is recursively called from the min function for the first time
                 if depth == 1:
@@ -424,7 +448,7 @@ class Game(object):
             alpha = max(alpha, v)
 
         # save the new game state and associated values in the game state history 
-        self.history.add_entry(game_state, v, False)
+        self.history.add_history_entry(game_state, v, False)
 
 
         return v
@@ -470,13 +494,11 @@ class Game(object):
         # if state is not terminal, initialise the utility as + infinity 
         v = float('inf')
 
-        ifcut, v_saved = self.history.lookup(game_state)
+        ifcut, v_saved = self.history.lookup_history(game_state)
 
-
-        
-        if v_saved is not None and (not ifcut):#state stored and the value is certain
+        if v_saved is not None and (not ifcut): # state stored and the value is certain
             return v_saved
-        elif v_saved is not None and (not ifcut):#state stored but the value was alpha-cut
+        elif v_saved is not None and (not ifcut): # state stored but the value was alpha-cut
             if v_saved >= alpha:
                 return v_saved
 
@@ -497,7 +519,7 @@ class Game(object):
 
             # if the reassigned v is smaller than alpha
             if v <= alpha:
-                self.history.add_entry(game_state, v, True)
+                self.history.add_history_entry(game_state, v, True)
 
                 # if we're callign the min() function for the second time 
                 if depth == 1:
@@ -511,7 +533,7 @@ class Game(object):
             beta = min(beta, v)
 
         # update the game state value history 
-        self.history.add_entry(game_state, v, False)
+        self.history.add_history_entry(game_state, v, False)
         return v
 
 
@@ -624,7 +646,7 @@ class Game(object):
                     line_hor_grids + first_hor_line
 
         return board_str
-    
+
     def play(self):
         """
 
@@ -737,41 +759,6 @@ class Game(object):
 
         return computing_times
 
-
-class GameStatesBuffer:
-    '''
-    Class to store of alpha-beta pruning and state values. It uses the frozenset of game states as keys to store the calculated utilities 
-    (value) and alpha-beta eliminations (ifcut) for each game state. 
-    '''
-
-    def __init__(self):
-        self.history = {} 
-
-    def add_entry(self, game_state, value, ifcut):
-        '''
-        Add state to buffer. cut_flag is True if the value calculation ws alpha or beta cut
-        '''
-        history_key = (frozenset(game_state[0]), frozenset(game_state[1]))
-        if history_key not in self.history:
-            self.history[history_key] = [ifcut, value]
-        else:
-            pass
-
-    def lookup(self, game_state):
-        '''
-        Lookup the value for a stored state
-        '''
-        history_key = (frozenset(game_state[0]), frozenset(game_state[1]))
-        if history_key in self.history:
-            return(self.history[history_key])
-        else:
-            return False, None
-
-    def clear(self):
-        '''
-        Clear the history
-        '''
-        self.history.clear()
 
 if __name__ == "__main__":
     main()
