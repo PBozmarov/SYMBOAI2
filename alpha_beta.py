@@ -653,8 +653,9 @@ class Game(object):
 
         
         while True:
-
+            
             game_state = self.game_state 
+            print(game_state)
 
             # draw the game board at a given state if visialisation is enabled
             if self.ifdisplay:
@@ -684,10 +685,10 @@ class Game(object):
                 # display the optimal actions calculated by minmax strategy and take the action selected by the manual user
                 string_coordinates = self.translate_move(actions)
                 comp_recommend_message = f'The moves recommended by the alpha-beta-pruned Minimax strategy: {string_coordinates}' 
+                print(f'Number of states explored: {len(self.history.history)}')
                 print(comp_recommend_message)
                 input_move = input('Input your move: ')
-                action = self.translate_input(input_move)
-            
+                
             # if player is fully automatic and doesn't manually input the moves
             elif current_player in self.automatic_players:
 
@@ -698,8 +699,7 @@ class Game(object):
                 # calculate the time it took to find the optimal values and store them
                 time_to_compute = action_end_time-action_start_time 
                 computing_times.append(time_to_compute) 
-
-
+                print(f'Number of states explored: {len(self.history.history)}')
                 string_coordinates = self.translate_move([action])
                 automatic_player_message = f'Action taken by automatic player: {string_coordinates}'
                 print(automatic_player_message)
@@ -721,6 +721,8 @@ class Game(object):
                     current_player = 2
                 elif current_player == 2: 
                     current_player = 1
+            
+            
 
             else:
                 # if move invalid return to top of loop without changing the state
